@@ -1,0 +1,1403 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#070816" />
+  <title>Boss Tracker</title>
+
+  <style>
+    *,*::before,*::after{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      color:#e9ecff;
+      background:#070816;
+      overflow-x:hidden;
+    }
+    button{ font:inherit; }
+
+    :root{
+      --bg0:#070816;
+      --bg1:#0a0c1f;
+      --stroke: rgba(37,42,99,.55);
+      --pink:#ff5aa6;
+      --mauve:#b06cff;
+      --violet:#6a5bff;
+      --cyan:#38d6ff;
+      --radius: 22px;
+    }
+
+    .bg{
+      position:fixed; inset:0; z-index:-2;
+      background:
+        radial-gradient(1000px 600px at 15% 20%, rgba(176,108,255,.22), transparent 55%),
+        radial-gradient(900px 700px at 80% 30%, rgba(255,90,166,.18), transparent 60%),
+        radial-gradient(900px 600px at 60% 90%, rgba(56,214,255,.14), transparent 55%),
+        linear-gradient(180deg, var(--bg1), var(--bg0));
+    }
+    canvas#stars{ position:fixed; inset:0; z-index:-1; opacity:.9; }
+
+    .wrap{ width:min(1840px, 96vw); margin: 18px auto 22px; }
+
+    header{
+      display:flex; align-items:flex-end; justify-content:space-between;
+      gap:14px; margin-bottom: 10px;
+    }
+    .title{
+      margin:0;
+      font-size: clamp(22px, 2.2vw, 32px);
+      line-height:1.05;
+      letter-spacing:.2px;
+    }
+    .subtitle{
+      margin:6px 0 0;
+      color: rgba(233,236,255,.72);
+      font-size: 13px;
+      line-height:1.4;
+    }
+    .pill{
+      padding:9px 12px;
+      border-radius:999px;
+      border:1px solid rgba(37,42,99,.7);
+      background: rgba(14,17,48,.35);
+      backdrop-filter: blur(12px);
+      color: rgba(233,236,255,.82);
+      white-space:nowrap;
+      box-shadow: 0 16px 40px rgba(0,0,0,.25);
+    }
+    .pill b{ color: var(--pink); }
+
+    .topbar{
+      display:grid;
+      grid-template-columns: 1.4fr .6fr;
+      gap:12px;
+      margin: 10px 0 12px;
+    }
+
+    .card{
+      border-radius: var(--radius);
+      background: rgba(14,17,48,.40);
+      border:1px solid rgba(37,42,99,.55);
+      box-shadow: 0 18px 45px rgba(0,0,0,.22);
+      position:relative;
+      overflow: visible;
+      padding:14px;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:-2px;
+      border-radius: var(--radius);
+      background:
+        radial-gradient(520px 240px at 18% 0%, rgba(255,90,166,.13), transparent 58%),
+        radial-gradient(520px 240px at 85% 65%, rgba(176,108,255,.13), transparent 60%),
+        radial-gradient(520px 240px at 55% 110%, rgba(56,214,255,.10), transparent 60%);
+      pointer-events:none;
+      clip-path: inset(0 round var(--radius));
+    }
+    .card h2{
+      margin:0;
+      font-size:13px;
+      letter-spacing:.22em;
+      text-transform:uppercase;
+      color: rgba(233,236,255,.82);
+      position:relative;
+      z-index:1;
+    }
+    .divider{
+      height:1px;
+      background: rgba(37,42,99,.45);
+      margin: 10px 0 10px;
+      position:relative;
+      z-index:1;
+    }
+
+    .big{
+      margin-top:6px;
+      font-size: clamp(26px, 2.2vw, 38px);
+      font-weight:900;
+      line-height:1;
+      display:flex;
+      gap:10px;
+      align-items:baseline;
+      position:relative;
+      z-index:1;
+    }
+    .big .accent{
+      color: var(--pink);
+      text-shadow: 0 0 18px rgba(255,90,166,.18);
+    }
+    .muted{
+      color: rgba(233,236,255,.68);
+      font-size: 13px;
+      position:relative;
+      z-index:1;
+    }
+
+    .controls{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-top:10px; position:relative; z-index:1;
+    }
+
+    input[type="text"], input[type="number"], textarea{
+      width:100%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(37,42,99,.60);
+      background: rgba(7,8,22,.35);
+      color: rgba(233,236,255,.92);
+      outline:none;
+    }
+    input::placeholder, textarea::placeholder{ color: rgba(233,236,255,.45); }
+    textarea{ min-height: 40px; resize: vertical; }
+
+    .row{ display:grid; grid-template-columns: 1.1fr .9fr; gap:10px; }
+    .row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+
+    .btn{
+      cursor:pointer;
+      border:1px solid rgba(37,42,99,.65);
+      background: rgba(14,17,48,.35);
+      color: rgba(233,236,255,.90);
+      padding: 9px 12px;
+      border-radius: 14px;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+      white-space:nowrap;
+      font-size: 13px;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      background: rgba(14,17,48,.55);
+      border-color: rgba(106,91,255,.65);
+    }
+    .btn.primary{
+      border-color: rgba(255,90,166,.55);
+      background: linear-gradient(135deg, rgba(255,90,166,.20), rgba(176,108,255,.20));
+      box-shadow: 0 18px 40px rgba(255,90,166,.10);
+      color: rgba(255,230,245,.95);
+      font-weight:800;
+    }
+    .btn.danger{
+      border-color: rgba(255,80,80,.35);
+      background: rgba(255,80,80,.10);
+      color: rgba(255,200,200,.95);
+      font-weight:700;
+    }
+    .btn.ghost{ background: transparent; }
+
+    .tag{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(37,42,99,.60);
+      background: rgba(7,8,22,.30);
+      color: rgba(233,236,255,.78);
+      white-space:nowrap;
+      max-width:100%;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .tag.pink{
+      border-color: rgba(255,90,166,.45);
+      background: rgba(255,90,166,.10);
+      color: rgba(255,190,220,.95);
+    }
+    .tag.purple{
+      border-color: rgba(176,108,255,.45);
+      background: rgba(176,108,255,.10);
+      color: rgba(215,190,255,.95);
+    }
+    .tag.cyan{
+      border-color: rgba(56,214,255,.45);
+      background: rgba(56,214,255,.10);
+      color: rgba(180,245,255,.95);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr 1.9fr;
+      gap:12px;
+      align-items:start;
+    }
+
+    .list{
+      margin:10px 0 0;
+      padding:0;
+      list-style:none;
+      display:grid;
+      gap:10px;
+      position:relative;
+      z-index:1;
+      min-height: 64px;
+    }
+
+    .item{
+      padding:12px 12px;
+      border-radius: 18px;
+      background: rgba(7,8,22,.28);
+      border: 1px solid rgba(37,42,99,.50);
+      display:grid;
+      grid-template-columns: 1fr auto;
+      column-gap: 10px;
+      gap:10px;
+      align-items:start;
+    }
+    .item-title{
+      font-weight:900;
+      margin:0;
+      line-height:1.1;
+      word-break: break-word;
+    }
+    .item-meta{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:8px;
+      align-items:center;
+    }
+    .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .small{ font-size:12px; color: rgba(233,236,255,.62); }
+
+    .item.game-active{
+      border-color: rgba(56,214,255,.80);
+      box-shadow:
+        0 0 0 1px rgba(56,214,255,.45),
+        0 16px 40px rgba(0,0,0,.35);
+      background: radial-gradient(circle at 0 0, rgba(56,214,255,.18), rgba(7,8,22,.28) 55%);
+    }
+
+    .stats-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+      position:relative;
+      z-index:1;
+    }
+    .stat-pill{
+      padding:7px 11px;
+      border-radius:999px;
+      border:1px solid rgba(37,42,99,.60);
+      background: rgba(7,8,22,.35);
+      font-size:12px;
+      color: rgba(233,236,255,.82);
+      white-space:nowrap;
+    }
+    .stat-pill b{ color: var(--cyan); }
+
+    .empty-msg{
+      margin-top:10px;
+      font-size:13px;
+      color: rgba(233,236,255,.70);
+    }
+
+    .boss-header{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      position:relative;
+      z-index:1;
+    }
+    .boss-title{
+      margin:0;
+      font-size: clamp(20px, 1.7vw, 26px);
+      font-weight:900;
+    }
+
+    .boss-summary{
+      margin-top:8px;
+      font-size:13px;
+      color: rgba(233,236,255,.76);
+      position:relative;
+      z-index:1;
+    }
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      z-index:9999;
+    }
+    .modal{
+      width:min(720px, 96vw);
+      border-radius: 22px;
+      border:1px solid rgba(37,42,99,.65);
+      background: rgba(14,17,48,.72);
+      box-shadow: 0 30px 70px rgba(0,0,0,.55);
+      padding: 14px;
+      position:relative;
+      overflow:hidden;
+      backdrop-filter: blur(12px);
+    }
+    .modal::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(700px 320px at 25% 0%, rgba(255,90,166,.16), transparent 58%),
+        radial-gradient(700px 320px at 85% 70%, rgba(176,108,255,.14), transparent 60%);
+      pointer-events:none;
+    }
+    .modal-top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+      position:relative;
+      z-index:1;
+    }
+    .modal h3{
+      margin:0;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      font-size:14px;
+      color: rgba(233,236,255,.82);
+    }
+    .modal .content{ margin-top:12px; position:relative; z-index:1; }
+
+    /* Custom Select (sort) */
+    .cselect{ position:relative; width:100%; z-index: 5; }
+    .cselect.open{ z-index: 999; }
+
+    .cselect-btn{
+      width:100%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(37,42,99,.60);
+      background: rgba(7,8,22,.35);
+      color: rgba(233,236,255,.92);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      cursor:pointer;
+      position:relative;
+      z-index:2;
+    }
+    .cselect-btn:focus{
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(56,214,255,.18);
+      border-color: rgba(56,214,255,.55);
+    }
+    .cselect-btn .label{
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .cselect-btn .chev{
+      width:10px; height:10px;
+      border-right:2px solid rgba(233,236,255,.75);
+      border-bottom:2px solid rgba(233,236,255,.75);
+      transform: rotate(45deg);
+      margin-top:-2px;
+      opacity:.9;
+    }
+
+    .cselect-menu{
+      position:absolute;
+      top: calc(100% + 8px);
+      left:0; right:0;
+      z-index: 1000;
+      border-radius: 16px;
+      border:1px solid rgba(37,42,99,.70);
+      background: rgba(14,17,48,.92);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 30px 70px rgba(0,0,0,.55);
+      overflow:hidden;
+      display:none;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .cselect.open .cselect-menu{ display:block; }
+
+    .cselect-option{
+      padding: 10px 12px;
+      cursor:pointer;
+      color: rgba(233,236,255,.86);
+      border-bottom: 1px solid rgba(37,42,99,.35);
+      user-select:none;
+    }
+    .cselect-option:last-child{ border-bottom:none; }
+    .cselect-option:hover{
+      background: linear-gradient(135deg, rgba(255,90,166,.16), rgba(176,108,255,.14));
+    }
+    .cselect-option[aria-selected="true"]{
+      background: linear-gradient(135deg, rgba(56,214,255,.16), rgba(106,91,255,.14));
+      color: rgba(233,236,255,.95);
+    }
+
+    .cselect select{
+      position:absolute;
+      inset:0;
+      opacity:0;
+      pointer-events:none;
+    }
+
+    /* Responsive */
+    @media (max-width: 1100px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+    @media (max-width: 980px){
+      .topbar{ grid-template-columns: 1fr; }
+      .row, .row2{ grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce){
+      canvas#stars{ display:none; }
+    }
+
+    /* Scrollbar */
+    html, body{
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(176,108,255,.90) rgba(7,8,22,.55);
+    }
+    *::-webkit-scrollbar{
+      width: 12px;
+      height: 12px;
+    }
+    *::-webkit-scrollbar-track{
+      background: rgba(7,8,22,.42);
+      border: 1px solid rgba(37,42,99,.38);
+      border-radius: 999px;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.03),
+        inset 0 0 22px rgba(56,214,255,.05);
+    }
+    *::-webkit-scrollbar-thumb{
+      border-radius: 999px;
+      border: 2px solid rgba(7,8,22,.62);
+      background: linear-gradient(180deg,
+        rgba(255,90,166,.85),
+        rgba(176,108,255,.85),
+        rgba(56,214,255,.78)
+      );
+      box-shadow:
+        0 0 10px rgba(255,90,166,.12),
+        0 0 12px rgba(176,108,255,.12),
+        0 0 12px rgba(56,214,255,.10);
+    }
+    *::-webkit-scrollbar-thumb:hover{
+      background: linear-gradient(180deg,
+        rgba(255,90,166,.95),
+        rgba(176,108,255,.95),
+        rgba(56,214,255,.88)
+      );
+      box-shadow:
+        0 0 14px rgba(255,90,166,.16),
+        0 0 16px rgba(176,108,255,.16),
+        0 0 16px rgba(56,214,255,.14);
+    }
+    *::-webkit-scrollbar-corner{ background: transparent; }
+
+    .cselect-menu::-webkit-scrollbar{
+      width: 10px;
+    }
+    .cselect-menu::-webkit-scrollbar-track{
+      background: rgba(7,8,22,.32);
+      border: 1px solid rgba(37,42,99,.32);
+    }
+    .cselect-menu::-webkit-scrollbar-thumb{
+      border: 2px solid rgba(14,17,48,.78);
+      background: linear-gradient(180deg,
+        rgba(176,108,255,.80),
+        rgba(56,214,255,.70)
+      );
+      box-shadow:
+        0 0 10px rgba(176,108,255,.12),
+        0 0 10px rgba(56,214,255,.10);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg" aria-hidden="true"></div>
+  <canvas id="stars" aria-hidden="true"></canvas>
+
+  <div class="wrap">
+    <header>
+      <div>
+        <h1 class="title">Boss Tracker</h1>
+        <p class="subtitle">made by lonnek 🔥</p>
+      </div>
+      <div class="pill">Zapis: <b>auto</b> 💾</div>
+    </header>
+
+    <!-- TOPBAR: dodawanie gry + statystyki -->
+    <section class="topbar">
+      <article class="card" style="min-height:unset;">
+        <h2>Dodaj grę / folder</h2>
+        <div class="divider"></div>
+
+        <form id="gameForm" autocomplete="off">
+          <input id="gameTitle" type="text" placeholder="Tytuł gry (np. Elden Ring)" required maxlength="80" />
+
+          <div class="controls">
+            <button class="btn primary" type="submit">+ Dodaj grę</button>
+            <button class="btn ghost" type="button" id="seedBtn">Demo</button>
+            <span class="small">Tip: kliknij grę po lewej, żeby dodać bossów.</span>
+          </div>
+        </form>
+      </article>
+
+      <article class="card" style="min-height:unset;">
+        <h2>Statystyki &amp; narzędzia</h2>
+        <div class="divider"></div>
+
+        <div class="stats-row">
+          <div class="stat-pill">Gry: <b id="totalGames">0</b></div>
+          <div class="stat-pill">Bossowie: <b id="totalBosses">0</b></div>
+          <div class="stat-pill">Śmierci: <b id="totalDeaths">0</b></div>
+          <div class="stat-pill">Czas: <b id="totalTime">0min</b></div>
+        </div>
+
+        <div style="margin-top:10px" class="row2">
+          <input id="searchInput" type="text" placeholder="Szukaj (gra / boss)..." />
+
+          <div class="cselect" data-select="sortGames">
+            <select id="sortGames">
+              <option value="updated_desc">Sort: ostatnio zmieniane</option>
+              <option value="created_desc">Sort: najnowsze dodane</option>
+              <option value="title_asc">Sort: tytuł A→Z</option>
+              <option value="bosses_desc">Sort: liczba bossów</option>
+              <option value="time_desc">Sort: najwięcej czasu</option>
+            </select>
+
+            <button type="button" class="cselect-btn" aria-haspopup="listbox" aria-expanded="false">
+              <span class="label">Sort: ostatnio zmieniane</span>
+              <span class="chev" aria-hidden="true"></span>
+            </button>
+
+            <div class="cselect-menu" role="listbox"></div>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:10px; justify-content:flex-end;">
+          <button class="btn" type="button" id="exportBtn">Eksport JSON</button>
+          <button class="btn" type="button" id="importBtn">Import JSON</button>
+          <button class="btn danger" type="button" id="wipeBtn">Wyczyść wszystko</button>
+        </div>
+
+        <input id="importFile" type="file" accept="application/json" style="display:none" />
+      </article>
+    </section>
+
+    <!-- MAIN GRID: gry + bossowie -->
+    <section class="grid">
+      <!-- Lista gier -->
+      <article class="card">
+        <h2>Gry / foldery</h2>
+        <div class="big"><span class="accent" id="sidebarGameCount">0</span><span style="color: rgba(233,236,255,.78); font-weight:800; font-size:15px; letter-spacing:.08em;">szt.</span></div>
+        <ul class="list" id="gameList"></ul>
+        <p class="empty-msg" id="emptyGames" style="display:none;">Na razie pusto. Dodaj pierwszą grę wyżej ☝️</p>
+      </article>
+
+      <!-- Szczegóły wybranej gry + bossowie -->
+      <article class="card">
+        <h2>Bossowie w grze</h2>
+        <div class="divider"></div>
+
+        <div id="bossPanelEmpty">
+          <p class="muted">Wybierz grę z listy po lewej, żeby dodać bossów i statystyki.</p>
+        </div>
+
+        <div id="bossPanel" style="display:none;">
+          <div class="boss-header">
+            <div>
+              <h3 class="boss-title" id="bossGameTitle"></h3>
+              <div class="item-meta" id="bossGameMeta"></div>
+            </div>
+            <div class="actions">
+              <button class="btn" type="button" id="editGameBtn">Zmień nazwę gry</button>
+              <button class="btn danger" type="button" id="deleteGameBtn">Usuń grę</button>
+            </div>
+          </div>
+
+          <p class="boss-summary" id="bossGameSummary"></p>
+
+          <div class="divider"></div>
+
+          <form id="bossForm" autocomplete="off">
+            <div class="row">
+              <input id="bossName" type="text" placeholder="Nazwa bossa (np. Malenia, Genichiro)" required maxlength="80" />
+              <div class="row2">
+                <input id="bossDeaths" type="number" min="0" step="1" placeholder="Śmierci (np. 23)" />
+                <input id="bossMinutes" type="number" min="0" step="1" placeholder="Minuty (np. 25)" />
+              </div>
+            </div>
+
+            <div class="controls">
+              <button class="btn primary" type="submit">+ Dodaj bossa</button>
+              <span class="small">Tip: minuty = realny czas walki, nie cały run.</span>
+            </div>
+          </form>
+
+          <ul class="list" id="bossList"></ul>
+          <p class="empty-msg" id="emptyBosses" style="display:none;">Brak bossów w tej grze. Czas kogoś skasować 😈</p>
+        </div>
+      </article>
+    </section>
+  </div>
+
+  <!-- MODAL: edycja bossa -->
+  <div class="modal-backdrop" id="bossModalBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bossModalTitle">
+      <div class="modal-top">
+        <h3 id="bossModalTitle">Edytuj bossa</h3>
+        <button class="btn ghost" id="closeBossModalBtn" type="button">Zamknij ✕</button>
+      </div>
+
+      <div class="content">
+        <form id="editBossForm" autocomplete="off">
+          <input id="editBossName" type="text" required maxlength="80" />
+
+          <div style="margin-top:10px" class="row2">
+            <input id="editBossDeaths" type="number" min="0" step="1" placeholder="Śmierci" />
+            <input id="editBossMinutes" type="number" min="0" step="1" placeholder="Minuty" />
+          </div>
+
+          <div class="controls">
+            <button class="btn primary" type="submit">Zapisz</button>
+            <button class="btn danger" type="button" id="deleteBossBtn">Usuń bossa</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===== Stars background ===== */
+    const canvas = document.getElementById('stars');
+    const ctx = canvas.getContext('2d');
+
+    function resizeStars(){
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+
+    const stars = [];
+    function seedStars(){
+      stars.length = 0;
+      const count = Math.round(Math.min(170, Math.max(90, window.innerWidth / 9)));
+      for (let i=0;i<count;i++){
+        stars.push({
+          x: Math.random()*window.innerWidth,
+          y: Math.random()*window.innerHeight,
+          r: Math.random()*1.4 + 0.2,
+          a: Math.random()*0.55 + 0.15,
+          vx: (Math.random()-0.5)*0.12,
+          vy: (Math.random()-0.5)*0.12,
+          tw: Math.random()*0.015 + 0.005
+        });
+      }
+    }
+
+    let tStars = 0;
+    function tickStars(){
+      tStars += 1;
+      ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+
+      const g = ctx.createRadialGradient(
+        window.innerWidth*0.5, window.innerHeight*0.25, 80,
+        window.innerWidth*0.5, window.innerHeight*0.25, Math.max(window.innerWidth, window.innerHeight)
+      );
+      g.addColorStop(0, 'rgba(255,90,166,0.06)');
+      g.addColorStop(0.45, 'rgba(176,108,255,0.05)');
+      g.addColorStop(1, 'rgba(7,8,22,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,window.innerWidth, window.innerHeight);
+
+      for (const s of stars){
+        s.x += s.vx; s.y += s.vy;
+        if (s.x < -10) s.x = window.innerWidth + 10;
+        if (s.x > window.innerWidth + 10) s.x = -10;
+        if (s.y < -10) s.y = window.innerHeight + 10;
+        if (s.y > window.innerHeight + 10) s.y = -10;
+
+        s.a += Math.sin(tStars * s.tw) * 0.002;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(233,236,255,${Math.max(0.08, Math.min(0.9, s.a))})`;
+        ctx.fill();
+      }
+
+      requestAnimationFrame(tickStars);
+    }
+
+    resizeStars();
+    seedStars();
+    tickStars();
+    window.addEventListener('resize', () => { resizeStars(); seedStars(); });
+
+    /* ===== Custom select (sort) ===== */
+    function initCustomSelect(root){
+      const select = root.querySelector("select");
+      const btn = root.querySelector(".cselect-btn");
+      const label = root.querySelector(".cselect-btn .label");
+      const menu = root.querySelector(".cselect-menu");
+
+      function close(){
+        root.classList.remove("open");
+        btn.setAttribute("aria-expanded","false");
+      }
+      function open(){
+        document.querySelectorAll(".cselect.open").forEach(x => { if(x!==root) x.classList.remove("open"); });
+        root.classList.add("open");
+        btn.setAttribute("aria-expanded","true");
+      }
+
+      function rebuild(){
+        menu.innerHTML = "";
+        const current = select.value;
+
+        [...select.options].forEach(opt => {
+          const div = document.createElement("div");
+          div.className = "cselect-option";
+          div.setAttribute("role","option");
+          div.dataset.value = opt.value;
+          div.textContent = opt.textContent;
+
+          const sel = opt.value === current;
+          div.setAttribute("aria-selected", sel ? "true" : "false");
+
+          div.addEventListener("click", () => {
+            select.value = opt.value;
+            select.dispatchEvent(new Event("change", { bubbles:true }));
+            label.textContent = opt.textContent;
+            rebuild();
+            close();
+          });
+
+          menu.appendChild(div);
+        });
+
+        const selectedOpt = select.options[select.selectedIndex];
+        label.textContent = selectedOpt ? selectedOpt.textContent : "";
+      }
+
+      btn.addEventListener("click", () => {
+        if(root.classList.contains("open")) close();
+        else open();
+      });
+
+      select.addEventListener("change", rebuild);
+
+      document.addEventListener("click", (e) => {
+        if(!root.contains(e.target)) close();
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if(e.key === "Escape") close();
+      });
+
+      rebuild();
+    }
+
+    /* ===== App: boss tracker ===== */
+    const STORAGE_KEY = "boss_tracker_v2_minutes";
+
+    const gameForm = document.getElementById("gameForm");
+    const gameTitle = document.getElementById("gameTitle");
+
+    const sidebarGameCount = document.getElementById("sidebarGameCount");
+    const gameList = document.getElementById("gameList");
+    const emptyGames = document.getElementById("emptyGames");
+
+    const totalGamesEl = document.getElementById("totalGames");
+    const totalBossesEl = document.getElementById("totalBosses");
+    const totalDeathsEl = document.getElementById("totalDeaths");
+    const totalTimeEl = document.getElementById("totalTime");
+
+    const searchInput = document.getElementById("searchInput");
+    const sortGames = document.getElementById("sortGames");
+
+    const exportBtn = document.getElementById("exportBtn");
+    const importBtn = document.getElementById("importBtn");
+    const wipeBtn = document.getElementById("wipeBtn");
+    const importFile = document.getElementById("importFile");
+    const seedBtn = document.getElementById("seedBtn");
+
+    const bossPanelEmpty = document.getElementById("bossPanelEmpty");
+    const bossPanel = document.getElementById("bossPanel");
+    const bossGameTitle = document.getElementById("bossGameTitle");
+    const bossGameMeta = document.getElementById("bossGameMeta");
+    const bossGameSummary = document.getElementById("bossGameSummary");
+    const bossForm = document.getElementById("bossForm");
+    const bossName = document.getElementById("bossName");
+    const bossDeaths = document.getElementById("bossDeaths");
+    const bossMinutes = document.getElementById("bossMinutes");
+    const bossList = document.getElementById("bossList");
+    const emptyBosses = document.getElementById("emptyBosses");
+    const editGameBtn = document.getElementById("editGameBtn");
+    const deleteGameBtn = document.getElementById("deleteGameBtn");
+
+    const bossModalBackdrop = document.getElementById("bossModalBackdrop");
+    const closeBossModalBtn = document.getElementById("closeBossModalBtn");
+    const editBossForm = document.getElementById("editBossForm");
+    const editBossName = document.getElementById("editBossName");
+    const editBossDeaths = document.getElementById("editBossDeaths");
+    const editBossMinutes = document.getElementById("editBossMinutes");
+    const deleteBossBtn = document.getElementById("deleteBossBtn");
+
+    let games = loadGames();
+    let selectedGameId = games[0]?.id ?? null;
+    let editingBossCtx = null; // { gameId, bossId }
+
+    function uid(){
+      return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+    }
+
+    function fmtDate(ts){
+      const d = new Date(ts);
+      return d.toLocaleString("pl-PL", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+    }
+
+    function formatMinutes(total){
+      const t = Math.max(0, Math.round(total || 0));
+      const h = Math.floor(t / 60);
+      const m = t % 60;
+      if(h > 0 && m > 0) return `${h}h ${m}min`;
+      if(h > 0) return `${h}h`;
+      return `${m}min`;
+    }
+
+    function loadGames(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return [];
+        const parsed = JSON.parse(raw);
+        if(!Array.isArray(parsed)) return [];
+        return parsed.map(g => ({
+          id: String(g.id ?? uid()),
+          title: String(g.title ?? "Bez tytułu"),
+          createdAt: Number(g.createdAt ?? Date.now()),
+          updatedAt: Number(g.updatedAt ?? Date.now()),
+          bosses: Array.isArray(g.bosses) ? g.bosses.map(b => {
+            const minutes = Number.isFinite(+b.minutes)
+              ? Number(b.minutes)
+              : (Number.isFinite(+b.hours) ? Math.round(Number(b.hours) * 60) : 0);
+            return {
+              id: String(b.id ?? uid()),
+              name: String(b.name ?? "Boss"),
+              deaths: Number.isFinite(+b.deaths) ? Number(b.deaths) : 0,
+              minutes,
+              createdAt: Number(b.createdAt ?? Date.now()),
+              updatedAt: Number(b.updatedAt ?? Date.now()),
+            };
+          }) : []
+        }));
+      }catch{
+        return [];
+      }
+    }
+
+    function saveGames(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
+    }
+
+    function summarizeGame(game){
+      const bosses = game.bosses || [];
+      let deaths = 0;
+      let minutes = 0;
+      for(const b of bosses){
+        deaths += Number(b.deaths) || 0;
+        minutes += Number(b.minutes) || 0;
+      }
+      return {
+        bossCount: bosses.length,
+        deaths,
+        minutes
+      };
+    }
+
+    function summarizeAll(){
+      let g = games.length;
+      let bossCount = 0;
+      let deaths = 0;
+      let minutes = 0;
+      for(const game of games){
+        const s = summarizeGame(game);
+        bossCount += s.bossCount;
+        deaths += s.deaths;
+        minutes += s.minutes;
+      }
+      return { g, bossCount, deaths, minutes };
+    }
+
+    function normalize(str){
+      return (str ?? "").toString().toLowerCase().trim();
+    }
+
+    function applyFilters(list){
+      const q = normalize(searchInput.value);
+      let out = list;
+
+      if(q){
+        out = out.filter(game => {
+          const gameText = normalize(game.title);
+          const bossesText = normalize(
+            (game.bosses || []).map(b => b.name).join(" ")
+          );
+          return gameText.includes(q) || bossesText.includes(q);
+        });
+      }
+
+      switch(sortGames.value){
+        case "updated_desc":
+          out = [...out].sort((a,b) => b.updatedAt - a.updatedAt);
+          break;
+        case "created_desc":
+          out = [...out].sort((a,b) => b.createdAt - a.createdAt);
+          break;
+        case "title_asc":
+          out = [...out].sort((a,b) => a.title.localeCompare(b.title, "pl"));
+          break;
+        case "bosses_desc":
+          out = [...out].sort((a,b) =>
+            summarizeGame(b).bossCount - summarizeGame(a).bossCount
+          );
+          break;
+        case "time_desc":
+          out = [...out].sort((a,b) =>
+            summarizeGame(b).minutes - summarizeGame(a).minutes
+          );
+          break;
+      }
+
+      return out;
+    }
+
+    function renderStats(){
+      const { g, bossCount, deaths, minutes } = summarizeAll();
+      totalGamesEl.textContent = g;
+      totalBossesEl.textContent = bossCount;
+      totalDeathsEl.textContent = deaths;
+      totalTimeEl.textContent = formatMinutes(minutes);
+    }
+
+    function renderGames(){
+      const filtered = applyFilters(games);
+      sidebarGameCount.textContent = filtered.length;
+      emptyGames.style.display = filtered.length ? "none" : "block";
+
+      gameList.innerHTML = "";
+
+      for(const game of filtered){
+        const li = document.createElement("li");
+        li.className = "item" + (game.id === selectedGameId ? " game-active" : "");
+        li.tabIndex = 0;
+
+        const left = document.createElement("div");
+        const right = document.createElement("div");
+        right.className = "actions";
+
+        const title = document.createElement("p");
+        title.className = "item-title";
+        title.textContent = game.title;
+
+        const meta = document.createElement("div");
+        meta.className = "item-meta";
+
+        const s = summarizeGame(game);
+        const statTag = document.createElement("span");
+        statTag.className = "tag cyan";
+        statTag.textContent = `${s.bossCount} bossów • ${s.deaths} śmierci • ${formatMinutes(s.minutes)}`;
+        meta.appendChild(statTag);
+
+        const small = document.createElement("div");
+        small.className = "small";
+        small.textContent = `Dodano: ${fmtDate(game.createdAt)} • Zmieniono: ${fmtDate(game.updatedAt)}`;
+
+        left.appendChild(title);
+        left.appendChild(meta);
+        left.appendChild(small);
+
+        const openBtn = document.createElement("button");
+        openBtn.type = "button";
+        openBtn.className = "btn";
+        openBtn.textContent = game.id === selectedGameId ? "Wybrane" : "Otwórz";
+        openBtn.addEventListener("click", () => {
+          selectedGameId = game.id;
+          renderAll();
+        });
+        right.appendChild(openBtn);
+
+        li.addEventListener("click", (e) => {
+          if(e.target.closest(".btn")) return;
+          selectedGameId = game.id;
+          renderAll();
+        });
+        li.addEventListener("keydown", (e) => {
+          if(e.key === "Enter" || e.key === " "){
+            e.preventDefault();
+            selectedGameId = game.id;
+            renderAll();
+          }
+        });
+
+        li.appendChild(left);
+        li.appendChild(right);
+        gameList.appendChild(li);
+      }
+    }
+
+    function renderBossPanel(){
+      const game = games.find(g => g.id === selectedGameId);
+
+      if(!game){
+        bossPanel.style.display = "none";
+        bossPanelEmpty.style.display = "block";
+        return;
+      }
+
+      bossPanelEmpty.style.display = "none";
+      bossPanel.style.display = "block";
+
+      bossGameTitle.textContent = game.title;
+      bossGameMeta.innerHTML = "";
+
+      const s = summarizeGame(game);
+      bossGameSummary.textContent =
+        s.bossCount === 0
+          ? "Jeszcze żadnego bossa w tej grze. Clean run albo dopiero zaczynasz 😇"
+          : `Bossów: ${s.bossCount} • Śmierci: ${s.deaths} • Czas na bossach: ${formatMinutes(s.minutes)}`;
+
+      const bosses = [...(game.bosses || [])].sort((a,b) => b.updatedAt - a.updatedAt);
+      bossList.innerHTML = "";
+      emptyBosses.style.display = bosses.length ? "none" : "block";
+
+      for(const boss of bosses){
+        const li = document.createElement("li");
+        li.className = "item";
+
+        const left = document.createElement("div");
+        const right = document.createElement("div");
+        right.className = "actions";
+
+        const title = document.createElement("p");
+        title.className = "item-title";
+        title.textContent = boss.name;
+
+        const meta = document.createElement("div");
+        meta.className = "item-meta";
+
+        const deathsTag = document.createElement("span");
+        deathsTag.className = "tag pink";
+        deathsTag.textContent = `${Number(boss.deaths) || 0} śmierci`;
+        meta.appendChild(deathsTag);
+
+        const timeTag = document.createElement("span");
+        timeTag.className = "tag cyan";
+        timeTag.textContent = formatMinutes(boss.minutes || 0);
+        meta.appendChild(timeTag);
+
+        const small = document.createElement("div");
+        small.className = "small";
+        small.textContent = `Dodano: ${fmtDate(boss.createdAt)} • Zmieniono: ${fmtDate(boss.updatedAt)}`;
+
+        left.appendChild(title);
+        left.appendChild(meta);
+        left.appendChild(small);
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "btn";
+        editBtn.textContent = "Edytuj";
+        editBtn.addEventListener("click", () => openBossModal(game.id, boss.id));
+
+        right.appendChild(editBtn);
+        li.appendChild(left);
+        li.appendChild(right);
+        bossList.appendChild(li);
+      }
+    }
+
+    function renderAll(){
+      renderStats();
+      renderGames();
+      renderBossPanel();
+      saveGames();
+    }
+
+    /* ===== CRUD: gra ===== */
+    gameForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const title = gameTitle.value.trim();
+      if(!title) return;
+
+      const now = Date.now();
+      const game = {
+        id: uid(),
+        title,
+        createdAt: now,
+        updatedAt: now,
+        bosses: []
+      };
+      games.unshift(game);
+      selectedGameId = game.id;
+
+      gameForm.reset();
+      gameTitle.focus();
+      renderAll();
+    });
+
+    editGameBtn.addEventListener("click", () => {
+      const game = games.find(g => g.id === selectedGameId);
+      if(!game) return;
+
+      const title = prompt("Tytuł gry:", game.title);
+      if(title === null) return;
+
+      const t = title.trim();
+      if(!t) return;
+
+      game.title = t;
+      game.updatedAt = Date.now();
+
+      renderAll();
+    });
+
+    deleteGameBtn.addEventListener("click", () => {
+      const game = games.find(g => g.id === selectedGameId);
+      if(!game) return;
+      if(!confirm(`Usunąć grę "${game.title}" razem z bossami?`)) return;
+
+      games = games.filter(g => g.id !== game.id);
+      selectedGameId = games[0]?.id ?? null;
+      renderAll();
+    });
+
+    /* ===== CRUD: boss ===== */
+    bossForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const game = games.find(g => g.id === selectedGameId);
+      if(!game) return;
+
+      const name = bossName.value.trim();
+      if(!name) return;
+
+      const deaths = Number(bossDeaths.value) || 0;
+      const minutes = Number(bossMinutes.value) || 0;
+
+      const now = Date.now();
+      game.bosses = game.bosses || [];
+      game.bosses.unshift({
+        id: uid(),
+        name,
+        deaths,
+        minutes,
+        createdAt: now,
+        updatedAt: now
+      });
+      game.updatedAt = now;
+
+      bossForm.reset();
+      bossName.focus();
+      renderAll();
+    });
+
+    function openBossModal(gameId, bossId){
+      const game = games.find(g => g.id === gameId);
+      if(!game) return;
+      const boss = (game.bosses || []).find(b => b.id === bossId);
+      if(!boss) return;
+
+      editingBossCtx = { gameId, bossId };
+
+      editBossName.value = boss.name;
+      editBossDeaths.value = boss.deaths ?? 0;
+      editBossMinutes.value = boss.minutes ?? 0;
+
+      bossModalBackdrop.style.display = "flex";
+      setTimeout(() => editBossName.focus(), 0);
+    }
+
+    function closeBossModal(){
+      editingBossCtx = null;
+      bossModalBackdrop.style.display = "none";
+    }
+
+    bossModalBackdrop.addEventListener("click", (e) => {
+      if(e.target === bossModalBackdrop) closeBossModal();
+    });
+    closeBossModalBtn.addEventListener("click", closeBossModal);
+    window.addEventListener("keydown", (e) => {
+      if(e.key === "Escape" && bossModalBackdrop.style.display === "flex"){
+        closeBossModal();
+      }
+    });
+
+    editBossForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if(!editingBossCtx) return;
+      const game = games.find(g => g.id === editingBossCtx.gameId);
+      if(!game) return;
+      const boss = (game.bosses || []).find(b => b.id === editingBossCtx.bossId);
+      if(!boss) return;
+
+      const name = editBossName.value.trim();
+      if(!name) return;
+
+      boss.name = name;
+      boss.deaths = Number(editBossDeaths.value) || 0;
+      boss.minutes = Number(editBossMinutes.value) || 0;
+      boss.updatedAt = Date.now();
+      game.updatedAt = Date.now();
+
+      renderAll();
+      closeBossModal();
+    });
+
+    deleteBossBtn.addEventListener("click", () => {
+      if(!editingBossCtx) return;
+      const game = games.find(g => g.id === editingBossCtx.gameId);
+      if(!game) return;
+      const boss = (game.bosses || []).find(b => b.id === editingBossCtx.bossId);
+      if(!boss) return;
+
+      if(!confirm(`Usunąć bossa "${boss.name}"?`)) return;
+
+      game.bosses = (game.bosses || []).filter(b => b.id !== boss.id);
+      game.updatedAt = Date.now();
+
+      renderAll();
+      closeBossModal();
+    });
+
+    /* ===== Search & sort ===== */
+    [searchInput, sortGames].forEach(el => {
+      el.addEventListener("input", renderAll);
+      el.addEventListener("change", renderAll);
+    });
+
+    /* ===== Import / export / wipe / demo ===== */
+    exportBtn.addEventListener("click", () => {
+      const payload = { version:2, exportedAt: new Date().toISOString(), games };
+      const blob = new Blob([JSON.stringify(payload,null,2)], { type:"application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "boss-tracker-export.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+
+    importBtn.addEventListener("click", () => importFile.click());
+    importFile.addEventListener("change", async () => {
+      const file = importFile.files?.[0];
+      if(!file) return;
+      try{
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const incoming = Array.isArray(parsed) ? parsed : parsed?.games;
+        if(!Array.isArray(incoming)) throw new Error("Zły format JSON.");
+
+        const mapped = incoming.map(g => ({
+          id: String(g.id ?? uid()),
+          title: String(g.title ?? "Bez tytułu"),
+          createdAt: Number(g.createdAt ?? Date.now()),
+          updatedAt: Number(g.updatedAt ?? Date.now()),
+          bosses: Array.isArray(g.bosses) ? g.bosses.map(b => {
+            const minutes = Number.isFinite(+b.minutes)
+              ? Number(b.minutes)
+              : (Number.isFinite(+b.hours) ? Math.round(Number(b.hours) * 60) : 0);
+            return {
+              id: String(b.id ?? uid()),
+              name: String(b.name ?? "Boss"),
+              deaths: Number.isFinite(+b.deaths) ? Number(b.deaths) : 0,
+              minutes,
+              createdAt: Number(b.createdAt ?? Date.now()),
+              updatedAt: Number(b.updatedAt ?? Date.now()),
+            };
+          }) : []
+        }));
+
+        const map = new Map(games.map(g => [g.id, g]));
+        for(const g of mapped) map.set(g.id, g);
+        games = Array.from(map.values()).sort((a,b) => b.updatedAt - a.updatedAt);
+        if(!games.find(g => g.id === selectedGameId)){
+          selectedGameId = games[0]?.id ?? null;
+        }
+
+        renderAll();
+        alert("Zaimportowane ✅");
+      }catch(err){
+        alert("Import nie siadł: " + (err?.message ?? "nieznany błąd"));
+      }finally{
+        importFile.value = "";
+      }
+    });
+
+    wipeBtn.addEventListener("click", () => {
+      if(!confirm("Wyczyścić wszystkie gry i bossów? (nie ma cofania)")) return;
+      games = [];
+      selectedGameId = null;
+      renderAll();
+    });
+
+    seedBtn.addEventListener("click", () => {
+      if(!confirm("Dodać przykładowe gry + bossów?")) return;
+      const now = Date.now();
+
+      const demoGames = [
+        {
+          title:"Elden Ring",
+          bosses:[
+            { name:"Margit", deaths:12, minutes:45, createdAt:now-10000000, updatedAt:now-9000000 },
+            { name:"Godrick", deaths:7, minutes:38, createdAt:now-8000000, updatedAt:now-7000000 }
+          ]
+        },
+        {
+          title:"Hollow Knight",
+          bosses:[
+            { name:"Hornet", deaths:5, minutes:18, createdAt:now-6000000, updatedAt:now-5000000 }
+          ]
+        },
+        {
+          title:"Sekiro",
+          bosses:[
+            { name:"Genichiro", deaths:34, minutes:75, createdAt:now-4000000, updatedAt:now-3000000 }
+          ]
+        }
+      ];
+
+      for(const d of demoGames){
+        const createdAt = now - Math.floor(Math.random()*2000000);
+        const bosses = (d.bosses || []).map(b => ({
+          id: uid(),
+          name: b.name,
+          deaths: b.deaths,
+          minutes: b.minutes,
+          createdAt: b.createdAt ?? createdAt,
+          updatedAt: b.updatedAt ?? (b.createdAt ?? createdAt)
+        }));
+        games.push({
+          id: uid(),
+          title: d.title,
+          createdAt,
+          updatedAt: now,
+          bosses
+        });
+      }
+
+      selectedGameId = games[0]?.id ?? null;
+      renderAll();
+    });
+
+    /* Init */
+    document.querySelectorAll(".cselect").forEach(initCustomSelect);
+    renderAll();
+  </script>
+</body>
+</html>
